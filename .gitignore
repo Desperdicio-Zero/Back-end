@@ -1,0 +1,54 @@
+# =========================
+# Dependências
+# =========================
+node_modules/
+
+# =========================
+# Compilação (TypeScript)
+# =========================
+dist/
+build/
+
+# =========================
+# Variáveis de Ambiente e Segurança
+# =========================
+.env
+.env.*
+*.env
+
+# =========================
+# Logs
+# =========================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# Testes e Cobertura
+# =========================
+coverage/
+.nyc_output/
+
+# =========================
+# Editor / IDE
+# =========================
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# =========================
+# Sistema Operativo
+# =========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

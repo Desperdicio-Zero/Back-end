@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int             @id @default(autoincrement())
+  email     String          @unique
+  password  String
+  inventory InventoryItem[]
+  history   HistoryItem[]
+}
+
+model Category {
+  id        Int             @id @default(autoincrement())
+  name      String
+  avg_days  Int
+  items     InventoryItem[]
+}
+
+model InventoryItem {
+  id               Int      @id @default(autoincrement())
+  name             String
+  userId           Int
+  user             User     @relation(fields: [userId], references: [id])
+  categoryId       Int
+  category         Category @relation(fields: [categoryId], references: [id])
+  expiry_date      DateTime? @db.Date
+  quantity         Float
+  unit             String
+  expiry_estimated Boolean  @default(false)
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model HistoryItem {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  user           User     @relation(fields: [userId], references: [id])
+  item_name      String
+  category_name  String
+  quantity       Float
+  unit           String
+  expiry_date    DateTime @db.Date
+  removal_reason String   // 'consumed' | 'expired' | 'donated' | 'other'
+  removed_at     DateTime @default(now())
+  notes          String?  @db.Text
+}
