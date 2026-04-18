@@ -8,9 +8,11 @@ datasource db {
 }
 
 model User {
-  id        Int             @id @default(autoincrement())
-  email     String          @unique
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
   password  String
+  createdAt DateTime @default(now())
+
   inventory InventoryItem[]
   history   HistoryItem[]
 }
@@ -33,9 +35,38 @@ model InventoryItem {
   quantity         Float
   unit             String
   expiry_estimated Boolean  @default(false)
-  notes            String?  @db.Text
+  notes            String?         @db.Text
   createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  updatedAt        DateTime        @updatedAt
+}
+
+model StatusValidade {
+  id        Int             @id @default(autoincrement()) @map("idStatus")
+  descricao String?         @map("descricao") @db.VarChar(45)
+
+  @@map("status_validade")
+}
+
+model CatalogoProduto {
+  barcode                String    @id @map("codigo_barras") @db.VarChar(100)
+  nome_produto           String?   @map("nome_produto") @db.VarChar(255)
+  marcas                 String?   @map("marcas") @db.VarChar(255)
+  categoria              String?   @map("categoria") @db.Text
+  quantidade             String?   @map("quantidade") @db.VarChar(100)
+  porcao                 String?   @map("porcao") @db.VarChar(100)
+  graduacao_nutricional  String?   @map("graduacao_nutricional") @db.Char(1)
+  nova_group             Int?      @map("nova_group") @db.TinyInt
+  qtd_caloria            Decimal?  @map("qtd_caloria") @db.Decimal(8, 2)
+  qtd_gordura            Decimal?  @map("qtd_gordura") @db.Decimal(8, 2)
+  qtd_gordura_saturada   Decimal?  @map("qtd_gordura_saturada") @db.Decimal(8, 2)
+  qtd_carbo              Decimal?  @map("qtd_carbo") @db.Decimal(8, 2)
+  qtd_acucar             Decimal?  @map("qtd_acucar") @db.Decimal(8, 2)
+  qtd_proteina           Decimal?  @map("qtd_proteina") @db.Decimal(8, 2)
+  qtd_sodio              Decimal?  @map("qtd_sodio") @db.Decimal(8, 2)
+  qtd_fibra              Decimal?  @map("qtd_fibra") @db.Decimal(8, 2)
+  data_isercao_prod      DateTime? @map("data_isercao_prod")
+
+  @@map("catalogo_produtos")
 }
 
 model HistoryItem {
