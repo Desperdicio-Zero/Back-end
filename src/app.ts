@@ -3,17 +3,25 @@ import cors from 'cors';
 import authRoutes from './controllers/authController';
 import inventoryRoutes from './controllers/inventoryController';
 import recipeRoutes from './controllers/recipeController';
+import categoryRoutes from './controllers/categoryController';
+import historyRoutes from './controllers/historyController'
 
 const app = express();
 
 app.use(cors());
-app.use(express.json()); // Para JSON (a maioria das requisições)
-app.use(express.urlencoded({ extended: true })); // Importante para o seu login form-urlencoded
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Rotas
 app.use('/auth', authRoutes);
 app.use('/inventory', inventoryRoutes);
 app.use('/generate-recipe', recipeRoutes);
-// Dica: Crie rotas para /history e /categories seguindo a mesma lógica
+app.use('/categories', categoryRoutes);
+app.use('/history', historyRoutes)
+
+// Endpoint de Health-check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 export default app;
