@@ -9,8 +9,8 @@ import categoriesRoutes from './controllers/categoriesController';
 const app = express();
 
 app.use(cors());
-app.use(express.json()); // Para JSON (a maioria das requisições)
-app.use(express.urlencoded({ extended: true })); // Importante para o seu login form-urlencoded
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Rotas
 app.use('/auth', authRoutes);
