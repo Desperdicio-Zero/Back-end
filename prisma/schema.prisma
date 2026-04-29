@@ -15,6 +15,8 @@ model User {
 
   inventory InventoryItem[]
   history   HistoryItem[]
+
+  devices   Device[]
 }
 
 model Category {
@@ -81,4 +83,14 @@ model HistoryItem {
   removal_reason String   // 'consumed' | 'expired' | 'donated' | 'other'
   removed_at     DateTime @default(now())
   notes          String?  @db.Text
+}
+
+model Device {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique @db.VarChar(255)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@map("devices")
 }

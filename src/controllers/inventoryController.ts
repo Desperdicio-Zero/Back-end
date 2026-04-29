@@ -5,7 +5,6 @@ import { authMiddleware, AuthRequest } from '../middlewares/authMiddleware';
 const router = Router();
 const prisma = new PrismaClient();
 
-// Aplica o middleware de autenticação (precisa criar o arquivo checando o JWT)
 router.use(authMiddleware); 
 
 router.get('/', async (req: any, res) => {

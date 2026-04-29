@@ -24,7 +24,7 @@ router.post('/', async (req: AuthRequest, res) => {
         expiry_date: new Date(expiry_date),
         removal_reason,
         notes,
-        removed_at: new Date() // Grava o exato momento em que foi removido
+        removed_at: new Date()
       }
     });
     res.status(201).json(historyEntry);

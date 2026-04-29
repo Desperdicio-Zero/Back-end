@@ -26,7 +26,6 @@ router.post('/register', async (req, res) => {
 });
 
 router.post('/login', async (req, res) => {
-  // Proteção: Garante que os dados chegaram e que se chamam username e password
   if (!req.body || !req.body.username || !req.body.password) {
     return res.status(400).json({ 
       detail: 'Dados ausentes. Certifique-se de enviar username e password via form-urlencoded.' 

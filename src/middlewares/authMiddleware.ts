@@ -14,7 +14,7 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
 
   if (!authHeader) {
     res.status(401).json({ detail: 'Token de autenticação não fornecido.' });
-    return; // Garante que a execução pare aqui
+    return;
   }
 
   // Separa o "Bearer" do token em si
@@ -33,7 +33,7 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
     // Injeta o ID do usuário na requisição para que os controllers possam usar
     req.userId = decoded.userId;
     
-    // Passa a bola para o próximo passo (o controller da rota)
+    // Passa a bola para o controller da rota
     next();
   } catch (error) {
     res.status(401).json({ detail: 'Token expirado ou inválido.' });
