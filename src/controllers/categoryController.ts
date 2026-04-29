@@ -5,6 +5,8 @@ import { authMiddleware } from '../middlewares/authMiddleware';
 const router = Router();
 const prisma = new PrismaClient();
 
+router.use(authMiddleware);
+
 // GET /categories/ — Listar categorias
 router.get('/', authMiddleware, async (req, res) => {
   try {
