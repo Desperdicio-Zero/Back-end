@@ -85,6 +85,21 @@ model HistoryItem {
   notes          String?  @db.Text
 }
 
+model Mosc {
+  id              Int      @id @default(autoincrement()) @map("id_mosc")
+  cnpj            String   @db.Char(14)
+  cnae            Int? 
+  nome_fantasia   String?  @map("nome_fantasia") @db.VarChar(255)
+  razao_social    String?  @map("razao_social") @db.VarChar(255)
+  latitude        Decimal  @db.Decimal(10, 7)
+  longitude       Decimal  @db.Decimal(10, 7)
+  municipio       Int?
+  municipio_nome  String?  @map("municipio_nome") @db.VarChar(255)
+  uf              String?  @db.Char(2)
+
+  @@map("mosc")
+}
+
 model Device {
   id        Int      @id @default(autoincrement())
   token     String   @unique @db.VarChar(255)
