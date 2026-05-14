@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authMiddleware, AuthRequest } from '../middlewares/authMiddleware';
+import { logger } from '../lib/logger';
 
 const router = Router();
 const prisma = new PrismaClient();
+const log = logger('History');
 
 router.use(authMiddleware);
 
@@ -28,8 +30,9 @@ router.post('/', async (req: AuthRequest, res) => {
       }
     });
     res.status(201).json(historyEntry);
+    log.info(`Item registrado no histórico`, { userId: req.userId, item: item_name, reason: removal_reason });
   } catch (error) {
-    console.error(error);
+    log.error('POST /history/ — erro ao registrar', error);
     res.status(500).json({ detail: 'Erro ao registar o item no histórico.' });
   }
 });
@@ -86,6 +89,7 @@ router.get('/stats', async (req: AuthRequest, res) => {
       total_expired: cat._count.category_name
     }));
 
+    log.debug('GET /history/stats', { userId, total_removed, waste_rate_percent });
     res.json({
       total_removed,
       total_consumed,
@@ -96,7 +100,7 @@ router.get('/stats', async (req: AuthRequest, res) => {
       top_wasted_categories
     });
   } catch (error) {
-    console.error(error);
+    log.error('GET /history/stats — erro', error);
     res.status(500).json({ detail: 'Erro ao calcular as estatísticas.' });
   }
 });
@@ -118,8 +122,10 @@ router.get('/', async (req: AuthRequest, res) => {
       take: Number(limit),
       skip: Number(skip)
     });
+    log.debug('GET /history/', { userId: req.userId, count: history.length });
     res.json(history);
   } catch (error) {
+    log.error('GET /history/ — erro', error);
     res.status(500).json({ detail: 'Erro ao buscar a lista do histórico.' });
   }
 });

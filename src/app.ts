@@ -9,8 +9,13 @@ import historyRoutes from './controllers/historyController';
 import receiptRoutes from './controllers/receiptController';
 import deviceRoutes from './controllers/deviceController';
 import categoriesRoutes from './controllers/categoriesController';
+import { httpLogger } from './middlewares/httpLogger';
+import { rootLogger } from './lib/logger';
 
 const app = express();
+
+// Logging de requisições HTTP — deve ser o primeiro middleware
+app.use(httpLogger);
 
 app.use(cors());
 // Aumentar limite de tamanho para suportar imagens em base64 de cupons fiscais
@@ -32,6 +37,16 @@ app.use('/categories', categoriesRoutes);
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
-// Dica: Crie rotas para /history seguindo a mesma lógica
+
+// Log das rotas registradas
+rootLogger.info('Rotas registradas', {
+  rotas: [
+    'POST /auth/register', 'POST /auth/login', 'GET /auth/me', 'PUT /auth/me',
+    'GET|POST /inventory/', 'GET|PATCH|DELETE /inventory/:id',
+    'GET /categories/', 'POST /generate-recipe',
+    'GET|POST /history/', 'GET /catalog/search', 'GET /catalog/:ean',
+    'POST /receipt/scan', 'POST /devices/register', 'GET /health',
+  ],
+});
 
 export default app;

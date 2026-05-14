@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authMiddleware, AuthRequest } from '../middlewares/authMiddleware';
+import { logger } from '../lib/logger';
 
 const router = Router();
 const prisma = new PrismaClient();
+const log = logger('Inventory');
 
 router.use(authMiddleware);
 
@@ -101,7 +103,7 @@ router.get('/', async (req: any, res) => {
     where: { userId: req.userId },
     include: { category: true }
   });
-
+  log.debug(`Inventário carregado`, { userId: req.userId, total: items.length });
   res.json(items.map(toPantryItemOut));
 });
 
@@ -158,6 +160,7 @@ router.post('/', async (req: any, res) => {
     include: { category: true },
   });
 
+  log.info(`Item criado`, { userId: req.userId, itemId: item.id, name: item.name, category: item.category.name, expiryEstimated });
   res.status(201).json(toPantryItemOut(item));
 });
 
@@ -173,9 +176,14 @@ router.get('/:id', async (req: AuthRequest, res) => {
       include: { category: true }
     });
 
-    if (!item) return res.status(404).json({ detail: 'Item não encontrado.' });
+    if (!item) {
+      log.warn(`GET /:id — item não encontrado`, { userId: req.userId, itemId: id });
+      return res.status(404).json({ detail: 'Item não encontrado.' });
+    }
+    log.debug(`GET /:id — item retornado`, { userId: req.userId, itemId: id });
     res.json(item);
   } catch (error) {
+    log.error(`GET /:id — erro`, error);
     res.status(500).json({ detail: 'Erro ao buscar item.' });
   }
 });
@@ -201,16 +209,21 @@ router.patch('/:id', async (req: AuthRequest, res) => {
       }
     });
 
-    if (updatedItem.count === 0) return res.status(404).json({ detail: 'Item não encontrado ou sem permissão.' });
-    
+    if (updatedItem.count === 0) {
+      log.warn(`PATCH /:id — item não encontrado ou sem permissão`, { userId: req.userId, itemId: id });
+      return res.status(404).json({ detail: 'Item não encontrado ou sem permissão.' });
+    }
+    log.info(`PATCH /:id — item atualizado`, { userId: req.userId, itemId: id });
     res.json({ message: 'Item atualizado com sucesso.' });
   } catch (error) {
+    log.error(`PATCH /:id — erro`, error);
     res.status(400).json({ detail: 'Erro ao atualizar item.' });
   }
 });
 
 router.delete('/:id', async (req: any, res) => {
   await prisma.inventoryItem.delete({ where: { id: Number(req.params.id) } });
+  log.info(`DELETE /:id — item removido`, { userId: req.userId, itemId: req.params.id });
   res.status(204).send();
 });
 
