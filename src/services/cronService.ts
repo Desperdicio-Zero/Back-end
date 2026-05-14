@@ -1,9 +1,9 @@
 import cron from 'node-cron';
 import { PrismaClient } from '@prisma/client';
-import { Expo, ExpoPushMessage } from 'expo-server-sdk';
+// expo-server-sdk é ESM puro — usamos dynamic import() para compatibilidade com CommonJS
+import type { Expo as ExpoType, ExpoPushMessage } from 'expo-server-sdk';
 
 const prisma = new PrismaClient();
-const expo = new Expo();
 
 export const startCronJobs = () => {
   console.log('⏰ Motor de notificações agendado.');
@@ -13,6 +13,10 @@ export const startCronJobs = () => {
     console.log('Executando varredura diária de validades...');
 
     try {
+      // Dynamic import do ESM expo-server-sdk (compatível com CommonJS)
+      const { Expo } = await import('expo-server-sdk') as { Expo: typeof ExpoType & { isExpoPushToken: (token: string) => boolean } };
+      const expo = new Expo();
+
       // 1. Pegar a data global e forçar o horário do Brasil (UTC-3)
       const now = new Date();
       now.setUTCHours(now.getUTCHours() - 3); 
@@ -56,7 +60,7 @@ export const startCronJobs = () => {
         
         for (const device of devices) {
           // Verifica se o token é válido para o Expo
-          if (!Expo.isExpoPushToken(device.token)) continue;
+          if (!(Expo as any).isExpoPushToken(device.token)) continue;
 
           messages.push({
             to: device.token,
