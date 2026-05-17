@@ -22,7 +22,10 @@ const DEFAULT_CATEGORIES: Array<{ id: number; name: string; avg_days: number }> 
   { id: 10, name: 'Congelados', avg_days: 90 },
   { id: 11, name: 'Pães e Confeitaria', avg_days: 5 },
   { id: 12, name: 'Ovos', avg_days: 14 },
-  { id: 13, name: 'Outros', avg_days: 7 },
+  { id: 13, name: 'Biscoitos e Snacks', avg_days: 30 },
+  { id: 14, name: 'Frios e Embutidos', avg_days: 10 },
+  { id: 15, name: 'Doces e Chocolates', avg_days: 60 },
+  { id: 16, name: 'Outros', avg_days: 7 },
 ];
 
 function toIsoDateOnly(date: Date): string {
