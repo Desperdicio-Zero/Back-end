@@ -47,13 +47,13 @@ function normalizeText(input: string): string {
 
 function guessCategoryFromText(text: string | null | undefined): number {
   const normalized = normalizeText(text ?? '');
-  if (!normalized) return 13;
+  if (!normalized) return 16;
 
   for (const [keyword, id] of KEYWORD_TO_CATEGORY) {
     if (normalized.includes(normalizeText(keyword))) return id;
   }
 
-  return 13;
+  return 16;
 }
 
 function parseQuantityNormalized(raw: string | null | undefined): number | null {

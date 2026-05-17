@@ -8,6 +8,55 @@ const prisma = new PrismaClient();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
+const CANONICAL_CATEGORIES: Array<{ id: number; name: string }> = [
+  { id: 1, name: 'Hortifruti' },
+  { id: 2, name: 'Laticínios' },
+  { id: 3, name: 'Carnes e Aves' },
+  { id: 4, name: 'Peixes e Frutos do Mar' },
+  { id: 5, name: 'Cereais e Grãos' },
+  { id: 6, name: 'Massas e Farináceos' },
+  { id: 7, name: 'Enlatados' },
+  { id: 8, name: 'Bebidas' },
+  { id: 9, name: 'Condimentos e Temperos' },
+  { id: 10, name: 'Congelados' },
+  { id: 11, name: 'Pães e Confeitaria' },
+  { id: 12, name: 'Ovos' },
+  { id: 13, name: 'Biscoitos e Snacks' },
+  { id: 14, name: 'Frios e Embutidos' },
+  { id: 15, name: 'Doces e Chocolates' },
+  { id: 16, name: 'Outros' },
+];
+
+function mapToCanonicalCategory(suggested: any, itemName: string) {
+  const s = (suggested || '').toString().toLowerCase();
+  const n = (itemName || '').toString().toLowerCase();
+
+  // If the suggested text already exactly matches a canonical name, use it
+  for (const c of CANONICAL_CATEGORIES) {
+    if (s === c.name.toLowerCase()) return c;
+  }
+
+  // Heuristics / keyword overrides (order matters: more specific first)
+  if (/chocolate|doce|bombom|trufa/.test(s) || /chocolate|doce|bombom|trufa/.test(n)) return { id: 15, name: 'Doces e Chocolates' };
+  if (/bisc|biscoito|bolacha|snack|salgadinho|salgadinhos/.test(s) || /bisc|biscoito|bolacha|snack|salgadinho|salgadinhos/.test(n)) return { id: 13, name: 'Biscoitos e Snacks' };
+  if (/presunto|fiambre|mortadela|peito|salame|frios|embutido/.test(s) || /presunto|fiambre|mortadela|peito|salame|frios|embutido/.test(n)) return { id: 14, name: 'Frios e Embutidos' };
+  if (/refrigerante|refrig|refri|suco|sumo|água|agua|cerveja|bebida|bebidas/.test(s) || /refrigerante|refrig|refri|suco|sumo|água|agua|cerveja|bebida|bebidas/.test(n)) return { id: 8, name: 'Bebidas' };
+  if (/leite|queijo|manteiga|iogurt|iogurte|nata/.test(s) || /leite|queijo|manteiga|iogurt|iogurte|nata/.test(n)) return { id: 2, name: 'Laticínios' };
+  if (/pão|pao|bolo|croissant|pãozinho|paozinho|confeitaria/.test(s) || /pão|pao|bolo|croissant|pãozinho|paozinho|confeitaria/.test(n)) return { id: 11, name: 'Pães e Confeitaria' };
+  if (/ovo|ovos/.test(s) || /ovo|ovos/.test(n)) return { id: 12, name: 'Ovos' };
+  if (/fruta|frutas|verdura|verduras|alface|banana|maçã|maca|laranja|tomate|batata/.test(s) || /fruta|frutas|verdura|verduras|alface|banana|maçã|maca|laranja|tomate|batata/.test(n)) return { id: 1, name: 'Hortifruti' };
+  if (/carne|frango|bife|costela|porco|picanha/.test(s) || /carne|frango|bife|costela|porco|picanha/.test(n)) return { id: 3, name: 'Carnes e Aves' };
+  if (/peixe|salmão|atum|bacalhau|frutos do mar|marisco/.test(s) || /peixe|salmão|atum|bacalhau|frutos do mar|marisco/.test(n)) return { id: 4, name: 'Peixes e Frutos do Mar' };
+  if (/arroz|feijão|cereal|granola|aveia|grãos|graos/.test(s) || /arroz|feijão|cereal|granola|aveia|grãos|graos/.test(n)) return { id: 5, name: 'Cereais e Grãos' };
+  if (/massa|macarrão|macarrao|farinha|trigo/.test(s) || /massa|macarrão|macarrao|farinha|trigo/.test(n)) return { id: 6, name: 'Massas e Farináceos' };
+  if (/enlatado|lata|enlatados/.test(s) || /enlatado|lata|enlatados/.test(n)) return { id: 7, name: 'Enlatados' };
+  if (/condiment|tempero|sal|pimenta|alho|cebola|molho/.test(s) || /condiment|tempero|sal|pimenta|alho|cebola|molho/.test(n)) return { id: 9, name: 'Condimentos e Temperos' };
+  if (/congelad|surgelad|freezer/.test(s) || /congelad|surgelad|freezer/.test(n)) return { id: 10, name: 'Congelados' };
+
+  // Default
+  return { id: 16, name: 'Outros' };
+}
+
 router.use(authMiddleware);
 
 // ==========================================
@@ -27,15 +76,19 @@ router.post('/scan', async (req: AuthRequest, res) => {
 
     const prompt = `
       Analise esta imagem de um talão/nota fiscal de supermercado.
-      Extraia os produtos alimentícios e devolva EXCLUSIVAMENTE um array JSON válido.
-      Não adicione formatação markdown (como \`\`\`json).
-      O formato de cada objeto deve ser:
+      Extraia exclusivamente os produtos alimentícios e devolva APENAS um array JSON válido.
+      NUNCA inclua explicações nem formatação markdown.
+      Cada item deve ser um objeto com as chaves: name, quantity, unit, suggested_category.
+      A propriedade "suggested_category" deve ser UMA das categorias canônicas abaixo (escrever o nome exatamente igual):
+      ${CANONICAL_CATEGORIES.map((c) => c.name).join(', ')}
+      Exemplo de objeto:
       {
         "name": "Nome do Produto",
         "quantity": 1,
-        "unit": "unidade" (ou "kg", "litro", "grama", etc),
-        "suggested_category": "Laticínios" (tente classificar o produto)
+        "unit": "unidade",
+        "suggested_category": "Laticínios"
       }
+      Retorne apenas o array JSON (ex.: [{...}, {...}]).
     `;
 
     const imagePart = {
@@ -63,12 +116,28 @@ router.post('/scan', async (req: AuthRequest, res) => {
 
     const rawItems = Array.isArray(productsArray) ? productsArray : [];
 
+    // Post-process: normalize suggested_category to canonical names/ids
+    const processed = rawItems.map((it: any) => {
+      const name = it.name?.toString?.().trim?.() ?? '';
+      const quantity = Number(it.quantity ?? 1) || 1;
+      const unit = it.unit?.toString?.() ?? 'unidade';
+      const suggested = it.suggested_category ?? it.suggestedCategory ?? '';
+      const mapped = mapToCanonicalCategory(suggested, name);
+      return {
+        name,
+        quantity,
+        unit,
+        suggested_category: mapped.name,
+        category_id: mapped.id,
+      };
+    });
+
     // Return the shape expected by the frontend: an object containing
     // `items_parsed` (array of parsed items) and some metadata.
     res.json({
-      items_parsed: rawItems,
+      items_parsed: processed,
       items_created: [],
-      raw_count: rawItems.length,
+      raw_count: processed.length,
     });
   } catch (error) {
     console.error('Erro no Gemini:', error);
@@ -97,8 +166,8 @@ router.post('/import', async (req: AuthRequest, res) => {
     const name = item.name?.toString?.().trim?.();
     if (!name) return res.status(400).json({ detail: `Item na posição ${idx} sem nome.` });
 
-    // category_id pode vir vazio; atribuímos 13 (Outros) como fallback
-    const categoryId = Number(item.category_id ?? item.categoryId ?? 13) || 13;
+    // category_id pode vir vazio; atribuímos 16 (Outros) como fallback
+    const categoryId = Number(item.category_id ?? item.categoryId ?? 16) || 16;
 
     // quantity: coerce para número, use 1 por defeito
     const quantity = Number(item.quantity ?? 1) || 1;
@@ -113,10 +182,31 @@ router.post('/import', async (req: AuthRequest, res) => {
   try {
     // Para cada item, prepara o objeto para o Prisma
     // Carrega avg_days das categorias usadas para estimar validade quando ausente
-    const categoryIds = Array.from(new Set(normalized.map((n) => n.categoryId)));
-    const categories = await prisma.category.findMany({ where: { id: { in: categoryIds } } });
+    let categoryIds = Array.from(new Set(normalized.map((n) => n.categoryId)));
+    let categories = await prisma.category.findMany({ where: { id: { in: categoryIds } } });
     const avgDaysByCategory = new Map<number, number>();
     for (const c of categories) avgDaysByCategory.set(c.id, c.avg_days ?? 7);
+
+    // Detect missing category IDs (cause of FK errors). Remap missing ones to 'Outros' (16).
+    const missingIds = categoryIds.filter((id) => !avgDaysByCategory.has(id));
+    if (missingIds.length > 0) {
+      console.warn('Categorias não encontradas, remapeando para Outros (16):', missingIds);
+      // Remap normalized items using missing IDs to 16
+      for (const n of normalized) {
+        if (missingIds.includes(n.categoryId)) n.categoryId = 16;
+      }
+
+      // Ensure we have avg_days for category 16
+      if (!avgDaysByCategory.has(16)) {
+        const cat16 = await prisma.category.findUnique({ where: { id: 16 } });
+        avgDaysByCategory.set(16, cat16?.avg_days ?? 7);
+      }
+
+      // Recompute categoryIds and categories after remap
+      categoryIds = Array.from(new Set(normalized.map((n) => n.categoryId)));
+      categories = await prisma.category.findMany({ where: { id: { in: categoryIds } } });
+      for (const c of categories) avgDaysByCategory.set(c.id, c.avg_days ?? 7);
+    }
 
     const now = new Date();
     const dataToInsert = normalized.map((n) => {
