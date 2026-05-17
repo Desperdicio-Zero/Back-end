@@ -46,22 +46,7 @@ function addDays(date: Date, days: number): Date {
 
 async function ensureCategoryExists(categoryId: number) {
   const existing = await prisma.category.findUnique({ where: { id: categoryId } });
-  if (existing) return existing;
-
-  const fallback = DEFAULT_CATEGORIES.find((c) => c.id === categoryId) ?? {
-    id: categoryId,
-    name: `Categoria ${categoryId}`,
-    avg_days: 7,
-  };
-
-  // Nota: mesmo sendo autoincrement, MySQL permite inserir explicitamente o id.
-  return prisma.category.create({
-    data: {
-      id: fallback.id,
-      name: fallback.name,
-      avg_days: fallback.avg_days,
-    },
-  });
+  return existing ?? null;
 }
 
 function computeUrgency(expiryDate: Date | null) {
@@ -117,7 +102,7 @@ router.post('/', async (req: any, res) => {
     return res.status(400).json({ detail: 'Nome do produto é obrigatório.' });
   }
 
-  const categoryId = Number(category_id);
+  let categoryId = Number(category_id);
   if (!Number.isInteger(categoryId) || categoryId <= 0) {
     return res.status(400).json({ detail: 'Categoria inválida.' });
   }
@@ -130,8 +115,14 @@ router.post('/', async (req: any, res) => {
   const safeUnit = typeof unit === 'string' && unit.trim() ? unit.trim() : 'unidade';
   const safeNotes = typeof notes === 'string' && notes.trim() ? notes.trim() : null;
 
-  // Garante que a categoria exista para não violar FK (o app usa ids fixos 1..13).
-  const category = await ensureCategoryExists(categoryId);
+  // Garante que a categoria exista para não violar FK (o app usa ids fixos 1..16).
+  let category: any = await ensureCategoryExists(categoryId);
+  if (!category) {
+    // Não criamos categorias dinamicamente; remapeamos para 'Outros' (16).
+    log.warn('Categoria não encontrada, remapeando para Outros (16)', { requestedCategoryId: categoryId });
+    categoryId = 16;
+    category = DEFAULT_CATEGORIES.find((c) => c.id === 16) as any;
+  }
 
   let computedExpiryDate: Date | null;
   let expiryEstimated: boolean;
