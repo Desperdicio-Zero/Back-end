@@ -1,0 +1,38 @@
+name: CI — Verificação de Código
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+      - 'fix/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  # -----------------------------------------------------------------------
+  # TypeScript check — Backend (Express + Prisma)
+  # -----------------------------------------------------------------------
+  typecheck-backend:
+    name: 🔍 TypeScript — Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout do código
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: 📦 Instalar dependências
+        run: npm ci
+
+      - name: 🔍 Verificar tipos TypeScript
+        run: npx tsc --noEmit
