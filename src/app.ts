@@ -4,11 +4,11 @@ import authRoutes from './controllers/authController';
 import catalogRoutes from './controllers/catalogController';
 import inventoryRoutes from './controllers/inventoryController';
 import recipeRoutes from './controllers/recipeController';
-import categoryRoutes from './controllers/categoryController';
 import historyRoutes from './controllers/historyController';
 import receiptRoutes from './controllers/receiptController';
 import deviceRoutes from './controllers/deviceController';
 import categoriesRoutes from './controllers/categoriesController';
+import donationRoutes from './controllers/donationController';
 import { httpLogger } from './middlewares/httpLogger';
 import { rootLogger } from './lib/logger';
 
@@ -26,12 +26,12 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use('/auth', authRoutes); 
 app.use('/inventory', inventoryRoutes);
 app.use('/generate-recipe', recipeRoutes);
-app.use('/categories', categoryRoutes);
 app.use('/history', historyRoutes);
 app.use('/catalog', catalogRoutes);
 app.use('/receipt', receiptRoutes);
 app.use('/devices', deviceRoutes);
 app.use('/categories', categoriesRoutes);
+app.use('/donation', donationRoutes);
 
 // Endpoint de Health-check
 app.get('/health', (req, res) => {
@@ -46,6 +46,7 @@ rootLogger.info('Rotas registradas', {
     'GET /categories/', 'POST /generate-recipe',
     'GET|POST /history/', 'GET /catalog/search', 'GET /catalog/:ean',
     'POST /receipt/scan', 'POST /devices/register', 'GET /health',
+    'POST /donation/check', 'POST /donation/suggest'
   ],
 });
 

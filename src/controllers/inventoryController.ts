@@ -222,9 +222,26 @@ router.patch('/:id', async (req: AuthRequest, res) => {
 });
 
 router.delete('/:id', async (req: any, res) => {
-  await prisma.inventoryItem.delete({ where: { id: Number(req.params.id) } });
-  log.info(`DELETE /:id — item removido`, { userId: req.userId, itemId: req.params.id });
-  res.status(204).send();
+  const { id } = req.params;
+  try {
+    const deleted = await prisma.inventoryItem.deleteMany({
+      where: {
+        id: Number(id),
+        userId: req.userId,
+      },
+    });
+
+    if (deleted.count === 0) {
+      log.warn(`DELETE /:id — item não encontrado ou sem permissão`, { userId: req.userId, itemId: id });
+      return res.status(404).json({ detail: 'Item não encontrado ou sem permissão.' });
+    }
+
+    log.info(`DELETE /:id — item removido`, { userId: req.userId, itemId: id });
+    res.status(204).send();
+  } catch (error) {
+    log.error(`DELETE /:id — erro`, error);
+    res.status(500).json({ detail: 'Erro ao deletar o item.' });
+  }
 });
 
 export default router;

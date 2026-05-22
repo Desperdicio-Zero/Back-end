@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import axios from 'axios';
 import { authMiddleware } from '../middlewares/authMiddleware';
+import { logger } from '../lib/logger';
 
 const router = Router();
 const prisma = new PrismaClient();
+const log = logger('Catalog');
 
 router.use(authMiddleware);
 
@@ -114,18 +117,72 @@ router.get('/search', async (req, res) => {
   res.json(out);
 });
 
+async function fetchFromOpenFoodFacts(ean: string) {
+  try {
+    const url = `https://world.openfoodfacts.org/api/v0/product/${ean}.json`;
+    const response = await axios.get(url, {
+      headers: { 'User-Agent': 'DesperdicioZero - WebApp - Version 1.0' },
+      timeout: 5000,
+    });
+
+    if (response.data && response.data.status === 1 && response.data.product) {
+      const p = response.data.product;
+      const nutriments = p.nutriments || {};
+
+      return {
+        barcode: ean,
+        nome_produto: p.product_name_pt || p.product_name || p.product_name_en || 'Produto Desconhecido',
+        marcas: p.brands || null,
+        categoria: p.categories || null,
+        quantidade: p.quantity || null,
+        porcao: null,
+        graduacao_nutricional: p.nutrition_grades ? String(p.nutrition_grades).toUpperCase().slice(0, 1) : null,
+        nova_group: p.nova_group !== undefined && p.nova_group !== null ? Number(p.nova_group) : null,
+        qtd_caloria: nutriments['energy-kcal_100g'] !== undefined ? Number(nutriments['energy-kcal_100g']) : null,
+        qtd_gordura: nutriments['fat_100g'] !== undefined ? Number(nutriments['fat_100g']) : null,
+        qtd_gordura_saturada: nutriments['saturated-fat_100g'] !== undefined ? Number(nutriments['saturated-fat_100g']) : null,
+        qtd_carbo: nutriments['carbohydrates_100g'] !== undefined ? Number(nutriments['carbohydrates_100g']) : null,
+        qtd_acucar: nutriments['sugars_100g'] !== undefined ? Number(nutriments['sugars_100g']) : null,
+        qtd_proteina: nutriments['proteins_100g'] !== undefined ? Number(nutriments['proteins_100g']) : null,
+        qtd_sodio: nutriments['sodium_100g'] !== undefined ? Number(nutriments['sodium_100g']) : null,
+        qtd_fibra: nutriments['fiber_100g'] !== undefined ? Number(nutriments['fiber_100g']) : null,
+        data_isercao_prod: new Date()
+      };
+    }
+  } catch (error) {
+    console.error(`Erro ao buscar no Open Food Facts para o EAN ${ean}:`, error);
+  }
+  return null;
+}
+
 router.get('/:ean', async (req, res) => {
   const ean = String(req.params.ean ?? '').trim();
   if (!ean) {
     return res.status(400).json({ detail: 'EAN inválido.' });
   }
 
-  const row = await prisma.catalogoProduto.findUnique({
+  let row = await prisma.catalogoProduto.findUnique({
     where: { barcode: ean },
   });
 
   if (!row) {
-    return res.status(404).json({ detail: 'Produto não encontrado no catálogo local.' });
+    log.info(`EAN ${ean} não encontrado no catálogo local. Buscando no Open Food Facts...`);
+    const offData = await fetchFromOpenFoodFacts(ean);
+    if (offData) {
+      try {
+        row = await prisma.catalogoProduto.create({
+          data: offData
+        });
+        log.info(`EAN ${ean} importado com sucesso do Open Food Facts e salvo no banco local.`);
+      } catch (dbError) {
+        log.error('Erro ao salvar produto do Open Food Facts no banco local:', dbError);
+        row = offData as any; // Fallback para retornar sem falhar a requisição
+      }
+    }
+  }
+
+  if (!row) {
+    return res.status(404).json({ detail: 'Produto não encontrado no catálogo local ou externo.' });
   }
 
   const categoriaText = row.categoria ?? '';

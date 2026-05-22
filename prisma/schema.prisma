@@ -97,6 +97,10 @@ model Mosc {
   municipio_nome  String?  @map("municipio_nome") @db.VarChar(255)
   uf              String?  @db.Char(2)
 
+  @@index([latitude, longitude])
+  @@index([uf])
+  @@index([municipio])
+
   @@map("mosc")
 }
 

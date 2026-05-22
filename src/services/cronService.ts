@@ -21,23 +21,21 @@ export const startCronJobs = () => {
       const now = new Date();
       now.setUTCHours(now.getUTCHours() - 3); 
       
-      // Calcular a data daqui a 3 dias baseada no horário corrigido
-      const targetDate = new Date(now);
-      targetDate.setUTCDate(targetDate.getUTCDate() + 3);
+      // Início do dia de hoje (0 dias)
+      const todayStart = new Date(now);
+      todayStart.setUTCHours(0, 0, 0, 0);
       
-      // Definir o início (00:00:00) e o fim (23:59:59) desse dia alvo
-      const inThreeDaysStart = new Date(targetDate);
-      inThreeDaysStart.setUTCHours(0, 0, 0, 0);
-
-      const inThreeDaysEnd = new Date(targetDate);
-      inThreeDaysEnd.setUTCHours(23, 59, 59, 999);
-
+      // Fim do dia daqui a 3 dias (3 dias)
+      const threeDaysEnd = new Date(now);
+      threeDaysEnd.setUTCDate(threeDaysEnd.getUTCDate() + 3);
+      threeDaysEnd.setUTCHours(23, 59, 59, 999);
+      
       // 2. Busca no banco
       const expiringItems = await prisma.inventoryItem.findMany({
         where: {
           expiry_date: {
-            gte: inThreeDaysStart,
-            lte: inThreeDaysEnd,
+            gte: todayStart,
+            lte: threeDaysEnd,
           },
         },
         include: {
@@ -48,7 +46,7 @@ export const startCronJobs = () => {
       });
 
       if (expiringItems.length === 0) {
-        console.log('Nenhum item a expirar em 3 dias. Nada a notificar.');
+        console.log('Nenhum item a expirar no intervalo de 0 a 3 dias. Nada a notificar.');
         return;
       }
 
@@ -57,7 +55,30 @@ export const startCronJobs = () => {
 
       for (const item of expiringItems) {
         const devices = item.user.devices;
-        
+        if (devices.length === 0) continue;
+
+        // Calcular a diferença em dias
+        if (!item.expiry_date) continue;
+        const diffTime = item.expiry_date.getTime() - todayStart.getTime();
+        const remainingDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+        let title = '';
+        let body = '';
+
+        if (remainingDays === 0) {
+          title = '🚨 Validade Vence Hoje!';
+          body = `Atenção: o seu ${item.name} vence hoje! Use ou doe agora mesmo.`;
+        } else if (remainingDays === 1) {
+          title = '⚠️ Vence Amanhã!';
+          body = `O seu ${item.name} vence amanhã. Que tal prepará-lo hoje?`;
+        } else if (remainingDays === 3) {
+          title = '💡 Atenção à Validade!';
+          body = `O seu ${item.name} vence em 3 dias. Que tal planejar uma receita?`;
+        } else {
+          // Ignorar se for 2 dias ou outro valor fora dos limites desejados
+          continue;
+        }
+
         for (const device of devices) {
           // Verifica se o token é válido para o Expo
           if (!(Expo as any).isExpoPushToken(device.token)) continue;
@@ -65,8 +86,8 @@ export const startCronJobs = () => {
           messages.push({
             to: device.token,
             sound: 'default',
-            title: '⚠️ Atenção à Validade!',
-            body: `O seu ${item.name} vence em 3 dias. Que tal planear uma receita?`,
+            title,
+            body,
             data: { itemId: item.id },
           });
         }

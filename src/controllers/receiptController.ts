@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import { authMiddleware, AuthRequest } from '../middlewares/authMiddleware';
 
 const router = Router();
@@ -23,20 +23,40 @@ router.post('/scan', async (req: AuthRequest, res) => {
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
-
-    const prompt = `
-      Analise esta imagem de um talão/nota fiscal de supermercado.
-      Extraia os produtos alimentícios e devolva EXCLUSIVAMENTE um array JSON válido.
-      Não adicione formatação markdown (como \`\`\`json).
-      O formato de cada objeto deve ser:
-      {
-        "name": "Nome do Produto",
-        "quantity": 1,
-        "unit": "unidade" (ou "kg", "litro", "grama", etc),
-        "suggested_category": "Laticínios" (tente classificar o produto)
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: SchemaType.ARRAY,
+          description: 'Lista de produtos alimentícios extraídos do cupom fiscal',
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              name: {
+                type: SchemaType.STRING,
+                description: 'Nome legível e claro do produto alimentício (ex: Leite Integral, Arroz Agulhinha)'
+              },
+              quantity: {
+                type: SchemaType.NUMBER,
+                description: 'Quantidade comprada'
+              },
+              unit: {
+                type: SchemaType.STRING,
+                description: 'Unidade de medida (ex: unidade, kg, g, litro, ml, etc)'
+              },
+              suggested_category: {
+                type: SchemaType.STRING,
+                description: 'Categoria do produto (deve ser um dos seguintes valores exatos: Hortifruti, Laticínios, Carnes e Aves, Peixes e Frutos do Mar, Cereais e Grãos, Massas e Farináceos, Enlatados, Bebidas, Condimentos e Temperos, Congelados, Pães e Confeitaria, Ovos, Outros)'
+              }
+            },
+            required: ['name', 'quantity', 'unit', 'suggested_category']
+          }
+        }
       }
-    `;
+    });
+
+    const prompt = 'Analise esta imagem de um talão ou nota fiscal de supermercado e extraia a lista de produtos alimentícios comprados.';
 
     const imagePart = {
       inlineData: {
@@ -48,16 +68,13 @@ router.post('/scan', async (req: AuthRequest, res) => {
     // Envia para o Gemini
     const result = await model.generateContent([prompt, imagePart]);
     const responseText = result.response.text();
-    console.debug('Gemini raw response:', responseText);
-
-    // Limpa a resposta (caso a IA ainda envie formatação markdown) e parseia o JSON
-    const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+    console.debug('Gemini structured response:', responseText);
 
     let productsArray: any;
     try {
-      productsArray = JSON.parse(cleanJson);
+      productsArray = JSON.parse(responseText.trim());
     } catch (parseError) {
-      console.error('Falha ao parsear JSON do Gemini:', parseError, '\nresponse:', responseText);
+      console.error('Falha ao parsear JSON estruturado do Gemini:', parseError, '\nresponse:', responseText);
       return res.status(502).json({ detail: 'Resposta inválida da IA ao processar a imagem.', raw_response: responseText?.slice?.(0, 200) });
     }
 
