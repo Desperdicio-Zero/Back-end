@@ -72,39 +72,38 @@ router.post('/scan', async (req: AuthRequest, res) => {
   }
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
-      generationConfig: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: SchemaType.ARRAY,
-          description: 'Lista de produtos alimentícios extraídos do cupom fiscal',
-          items: {
-            type: SchemaType.OBJECT,
-            properties: {
-              name: {
-                type: SchemaType.STRING,
-                description: 'Nome legível e claro do produto alimentício (ex: Leite Integral, Arroz Agulhinha)'
-              },
-              quantity: {
-                type: SchemaType.NUMBER,
-                description: 'Quantidade comprada'
-              },
-              unit: {
-                type: SchemaType.STRING,
-                description: 'Unidade de medida (ex: unidade, kg, g, litro, ml, etc)'
-              },
-              suggested_category: {
-                type: SchemaType.STRING,
-                description: 'Categoria do produto (deve ser um dos seguintes valores exatos: Hortifruti, Laticínios, Carnes e Aves, Peixes e Frutos do Mar, Cereais e Grãos, Massas e Farináceos, Enlatados, Bebidas, Condimentos e Temperos, Congelados, Pães e Confeitaria, Ovos, Outros)'
-              }
+    const generationConfig = {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: SchemaType.ARRAY,
+        description: 'Lista de produtos alimentícios extraídos do cupom fiscal',
+        items: {
+          type: SchemaType.OBJECT,
+          properties: {
+            name: {
+              type: SchemaType.STRING,
+              description: 'Nome legível e claro do produto alimentício (ex: Leite Integral, Arroz Agulhinha)'
             },
-            required: ['name', 'quantity', 'unit', 'suggested_category']
-          }
+            quantity: {
+              type: SchemaType.NUMBER,
+              description: 'Quantidade comprada'
+            },
+            unit: {
+              type: SchemaType.STRING,
+              description: 'Unidade de medida (ex: unidade, kg, g, litro, ml, etc)'
+            },
+            suggested_category: {
+              type: SchemaType.STRING,
+              description: 'Categoria do produto (deve ser um dos seguintes valores exatos: Hortifruti, Laticínios, Carnes e Aves, Peixes e Frutos do Mar, Cereais e Grãos, Massas e Farináceos, Enlatados, Bebidas, Condimentos e Temperos, Congelados, Pães e Confeitaria, Ovos, Outros)'
+            }
+          },
+          required: ['name', 'quantity', 'unit', 'suggested_category']
         }
       }
-    });
+    };
 
+    let modelName = 'gemini-2.5-flash';
+    let result;
     const prompt = 'Analise esta imagem de um talão ou nota fiscal de supermercado e extraia a lista de produtos alimentícios comprados.';
 
     const imagePart = {
@@ -114,8 +113,22 @@ router.post('/scan', async (req: AuthRequest, res) => {
       },
     };
 
-    // Envia para o Gemini
-    const result = await model.generateContent([prompt, imagePart]);
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig,
+      });
+      result = await model.generateContent([prompt, imagePart]);
+    } catch (e: any) {
+      console.warn(`[Gemini] Erro com o modelo ${modelName}, tentando fallback para gemini-2.5-flash-lite:`, e.message || e);
+      modelName = 'gemini-2.5-flash-lite';
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig,
+      });
+      result = await model.generateContent([prompt, imagePart]);
+    }
+
     const responseText = result.response.text();
     console.debug('Gemini structured response:', responseText);
 

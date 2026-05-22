@@ -15,7 +15,8 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    let modelName = 'gemini-2.5-flash';
+    let result;
 
     const prompt = `
       Sou um usuário do app "Desperdício Zero". 
@@ -26,7 +27,16 @@ router.post('/', async (req, res) => {
       2. Abaixo da receita, crie uma seção "💡 Doação Sustentável" sugerindo que, se o usuário tiver muito volume desses itens, ele pode doar. Sugira tipos de ONGs (bancos de alimentos, cozinhas solidárias) ou cite o "Mesa Brasil SESC" como exemplo real no Brasil.
     `;
 
-    const result = await model.generateContent(prompt);
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      result = await model.generateContent(prompt);
+    } catch (e: any) {
+      console.warn(`[Gemini] Erro com o modelo ${modelName}, tentando fallback para gemini-2.5-flash-lite:`, e.message || e);
+      modelName = 'gemini-2.5-flash-lite';
+      const model = genAI.getGenerativeModel({ model: modelName });
+      result = await model.generateContent(prompt);
+    }
+
     const responseText = result.response.text();
 
     res.json({
