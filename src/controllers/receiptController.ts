@@ -72,7 +72,7 @@ router.post('/scan', async (req: AuthRequest, res) => {
   }
 
   try {
-    const generationConfig = {
+    const generationConfig: any = {
       responseMimeType: 'application/json',
       responseSchema: {
         type: SchemaType.ARRAY,
